@@ -71,11 +71,6 @@ def train_tokenizer_remove_numbers(pretrained_tokenizer_name, dataset, path = "t
     return tokenizer
 
 
-def load_tokenizer(path):
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"Tokenizer path '{path}' does not exist.")
-    return AutoTokenizer.from_pretrained(path)
-
 def test_tokenizer(tokenizer, text, name = None):
     if name is not None:
         print(f"Testing tokenizer: {name} with vocab size {len(tokenizer.vocab)}")
