@@ -1,0 +1,14 @@
+#!/bin/bash
+
+#SBATCH --job-name=begin
+#SBATCH --nodes=1
+#SBATCH --gpus=1
+#SBATCH --mem=64G
+#SBATCH --cpus-per-gpu=8
+#SBATCH --time=00:15:00
+#SBATCH --output=outputs/output_%j.log
+#SBATCH --error=outputs/error_%j.log
+
+source venv/bin/activate
+
+python3 nlp_project.py
