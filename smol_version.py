@@ -213,8 +213,6 @@ def get_model_answer(model,tokenizer, prompt) -> str:
     print("Full output:", tokenizer.decode(outputs[0], skip_special_tokens=True)) # Print full output for debugging
     return answer.strip()
 
-def 
-
 
 def main():
     print("Starting")
@@ -234,18 +232,15 @@ def main():
 
     special_print("NEW RUN\n", log_path)
 
+    checkpoint: str = "HuggingFaceTB/SmolLM-135M-Instruct"
+    device: str = "cuda" 
+
+    smol: HFModel = ModelLLM(checkpoint, device=device)
 
 
     for i in range(0,3):
         prompt = generate_prompt(train_dataset[i])
         print("Generated prompt:\n", prompt)
-
-
-        checkpoint: str = "HuggingFaceTB/SmolLM-135M-Instruct"
-        device: str = "cuda" 
-
-        smol: HFModel = ModelLLM(checkpoint, device=device)
-
         messages: List[Dict[str, str]] = [
             {"role": "user", "content": prompt}
         ]
