@@ -19,6 +19,14 @@ from transformers import (
 )
 from abc import ABC, abstractmethod
 
+import evaluate
+
+metric = evaluate.load("accuracy")
+
+def compute_metrics(eval_pred):
+   logits, labels = eval_pred
+   predictions = np.argmax(logits, axis=-1)
+   return metric.compute(predictions=predictions, references=labels)
 
 class HFModel(ABC):
     def __init__(self, checkpoint: str, device: str = "cpu") -> None:
@@ -113,33 +121,50 @@ def fine_tune_model(model_name, train_dataset_list, output_dir="./finetuned_mode
 
     def tokenize_fn(example):
         prompt = generate_prompt(example)
-        return tokenizer(prompt, truncation=True, padding="max_length", max_length=512)
+        tokenized = tokenizer(prompt, truncation=True, padding="max_length", max_length=512)
+        tokenized["labels"] = tokenized["input_ids"].copy()
+        return tokenized
 
     train_dataset = Dataset.from_list(train_dataset_list)
 
     tokenized = train_dataset.map(tokenize_fn, batched=False)
     model = AutoModelForCausalLM.from_pretrained(model_name)
+    
+    train_size = 500
+    total_size = 1000
+    
+    shuffled = tokenized.shuffle(seed=42)
+    small_train_dataset = shuffled.select(range(train_size))
+    small_eval_dataset = shuffled.select(range(train_size, total_size))
 
     args = TrainingArguments(
         output_dir=output_dir,
-        per_device_train_batch_size=4,
-        num_train_epochs=3,
-        logging_steps=100,
-        save_steps=500,
-        save_total_limit=2,
-        fp16=torch.cuda.is_available(),
-        report_to="none",
+        per_device_train_batch_size=1,  # Reduce batch size here
+        per_device_eval_batch_size=1,    # Optionally, reduce for evaluation as well
+        gradient_accumulation_steps=4
+        # per_device_train_batch_size=4,
+        # num_train_epochs=3,
+        # logging_steps=100,
+        # save_steps=500,
+        # save_total_limit=2,
+        # fp16=torch.cuda.is_available(),
+        # report_to="none",
     )
 
     trainer = Trainer(
         model=model,
         args=args,
-        train_dataset=tokenized,
         tokenizer=tokenizer,
-        data_collator=DataCollatorForLanguageModeling(tokenizer, mlm=False)
+        train_dataset=small_train_dataset,
+        eval_dataset=small_eval_dataset
+        # compute_metrics=compute_metrics        
     )
 
     trainer.train()
+    
+    trainer.evaluate()
+
+
     return model, tokenizer
 
 
@@ -179,9 +204,14 @@ def main():
     load_dotenv()
     assert("HF_TOKEN" in os.environ), "HF_TOKEN environment variable is not set."
     dataset = get_CLRS_dataset("train")
+    
+    type(dataset)
 
-    train_algos, test_algos = select_algorithm_splits(dataset, train_ratio=0.2)
+    train_algos, test_algos = select_algorithm_splits(dataset, train_ratio=0.05)
     train_subset, test_subset = split_by_algorithm(dataset, train_algos)
+    
+    print("TYPE OF SUBSET")
+    type(train_subset)
 
     print("Fine-tuning on algorithms:", train_algos)
     model, tokenizer = fine_tune_model("HuggingFaceTB/SmolLM-135M-Instruct", train_subset)

@@ -9,6 +9,6 @@
 #SBATCH --output=outputs_tuned/output_%j.log
 #SBATCH --error=outputs_tuned/error_%j.log
 
-source venv/bin/activate
+source myenv/bin/activate
 
 python3 smol_fine_tuned.py
