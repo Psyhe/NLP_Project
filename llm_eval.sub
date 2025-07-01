@@ -1,0 +1,20 @@
+#!/bin/bash
+
+#SBATCH --job-name=eval_sub_test
+#SBATCH --nodes=1
+#SBATCH --gres=gpu:a100:1
+#SBATCH --cpus-per-gpu=8
+#SBATCH --time=00:05:00
+#SBATCH --output=baseline_outputs/output_%j.log
+#SBATCH --error=baseline_outputs/error_%j.log
+#SBATCH --partition=a100
+
+source venv/bin/activate
+
+
+export WANDB_API_KEY=your key
+export HF_TOKEN=your key
+TOKENIZER=/home/maryws/NLP/NLP_project/tmp/new_tokenizer
+SAVE_DIR=/home/maryws/NLP/NLP_project/tmp/fine_tuned_model
+
+python3 llm_eval/baseline_eval.py
