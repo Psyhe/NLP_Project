@@ -9,6 +9,7 @@ from tokenizers.pre_tokenizers import Digits
 CLRS_TEXT_FIELDS = ["question", "answer", "algo_name"]
 LLAMA_MODEL_NAME = "meta-llama/Meta-Llama-3-8B"
 GEMMA_MODEL_NAME = "google/gemma-2b"
+GEMMA_3_MODEL_NAME = "google/gemma-3-4b-pt"
 
 
 
@@ -57,7 +58,20 @@ def train_tokenizer_add_diff(pretrained_tokenizer_name, dataset, path = "tmp/new
     return tokenizer
 
 
-def train_tokenizer_remove_numbers(pretrained_tokenizer_name, dataset, path = "tmp/new_tokenizer_without_numbers"):
+def llama_train_tokenizer_remove_numbers(pretrained_tokenizer_name, dataset, path = "tmp/new_tokenizer_without_numbers"):
+    if path is not None:
+        os.makedirs(path, exist_ok=True)
+
+    tokenizer = AutoTokenizer.from_pretrained(pretrained_tokenizer_name)
+    pre_tokenizer = pre_tokenizers.Sequence([Digits(individual_digits=True), tokenizer._tokenizer.pre_tokenizer])
+    tokenizer._tokenizer.pre_tokenizer = pre_tokenizer
+
+    if path is not None:
+        tokenizer.save_pretrained(path)
+
+    return tokenizer
+
+def gemma_train_tokenizer_remove_numbers(pretrained_tokenizer_name, dataset, path = "tmp/new_tokenizer_without_numbers"):
     if path is not None:
         os.makedirs(path, exist_ok=True)
 
@@ -88,16 +102,16 @@ def main():
     text =get_iterable_corpus(test_dataset["test_1"], CLRS_TEXT_FIELDS).__next__()[0]
 
     # new_tokenizer = train_tokenizer_add_diff(LLAMA_MODEL_NAME, train_dataset, path="tmp/new_tokenizer")
-    # new_tokenizer = train_tokenizer_remove_numbers(LLAMA_MODEL_NAME, train_dataset, path="tmp/new_tokenizer_digits")
-    #new_tokenizer = train_tokenizer_add_diff("tmp/new_tokenizer_digits", train_dataset, path="tmp/new_tokenizer_digits_and_diff")
-    new_tokenizer = AutoTokenizer.from_pretrained("tmp/new_tokenizer_digits_and_diff")
-    
-    test_tokenizer(new_tokenizer, text, "New Tokenizer from Llama-3-8B")
-    test_tokenizer(AutoTokenizer.from_pretrained(LLAMA_MODEL_NAME), text, "Llama-3-8B")
+    # new_tokenizer = train_tokenizer_remove_numbers(GEMMA_MODEL_NAME, train_dataset, path="tmp/gemma_new_tokenizer_digits")
+    new_tokenizer = train_tokenizer_add_diff(GEMMA_3_MODEL_NAME, train_dataset, path="tmp/gemma3_new_tokenizer_digits_and_diff")
+    #new_tokenizer = AutoTokenizer.from_pretrained("tmp/new_tokenizer_digits_and_diff")
+
+    test_tokenizer(new_tokenizer, text, "New Tokenizer from Gemma-3-4B")
+    test_tokenizer(AutoTokenizer.from_pretrained(GEMMA_3_MODEL_NAME), text, "Gemma-3-4B")
 
     text = "What is the time complexity of binary search?"
-    test_tokenizer(new_tokenizer, text, "New Tokenizer from Llama-3-8B")
-    test_tokenizer(AutoTokenizer.from_pretrained(LLAMA_MODEL_NAME), text, "Llama-3-8B")
+    test_tokenizer(new_tokenizer, text, "New Tokenizer from Gemma-3-4B")
+    test_tokenizer(AutoTokenizer.from_pretrained(GEMMA_3_MODEL_NAME), text, "Gemma-3-4B")
 
 if __name__ == "__main__":
     main()
