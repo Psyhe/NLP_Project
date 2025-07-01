@@ -102,16 +102,16 @@ def main():
     text =get_iterable_corpus(test_dataset["test_1"], CLRS_TEXT_FIELDS).__next__()[0]
 
     # new_tokenizer = train_tokenizer_add_diff(LLAMA_MODEL_NAME, train_dataset, path="tmp/new_tokenizer")
-    # new_tokenizer = train_tokenizer_remove_numbers(GEMMA_MODEL_NAME, train_dataset, path="tmp/gemma_new_tokenizer_digits")
-    new_tokenizer = train_tokenizer_add_diff(GEMMA_3_MODEL_NAME, train_dataset, path="tmp/gemma3_new_tokenizer_digits_and_diff")
+    new_tokenizer = llama_train_tokenizer_remove_numbers(LLAMA_MODEL_NAME, train_dataset, path="tmp/llama_new_tokenizer_digits")
+    new_tokenizer = train_tokenizer_add_diff("tmp/llama_new_tokenizer_digits", train_dataset, path="tmp/llama_new_tokenizer_digits_and_diff")
     #new_tokenizer = AutoTokenizer.from_pretrained("tmp/new_tokenizer_digits_and_diff")
 
-    test_tokenizer(new_tokenizer, text, "New Tokenizer from Gemma-3-4B")
-    test_tokenizer(AutoTokenizer.from_pretrained(GEMMA_3_MODEL_NAME), text, "Gemma-3-4B")
+    test_tokenizer(new_tokenizer, text, "New Tokenizer from Llama-3-8B")
+    test_tokenizer(AutoTokenizer.from_pretrained(GEMMA_3_MODEL_NAME), text, "Llama-3-8B")
 
     text = "What is the time complexity of binary search?"
-    test_tokenizer(new_tokenizer, text, "New Tokenizer from Gemma-3-4B")
-    test_tokenizer(AutoTokenizer.from_pretrained(GEMMA_3_MODEL_NAME), text, "Gemma-3-4B")
+    test_tokenizer(new_tokenizer, text, "New Tokenizer from Llama-3-8B")
+    test_tokenizer(AutoTokenizer.from_pretrained(GEMMA_3_MODEL_NAME), text, "Llama-3-8B")
 
 if __name__ == "__main__":
     main()
