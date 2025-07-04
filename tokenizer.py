@@ -2,11 +2,14 @@ import os
 
 from datasets import load_dataset
 from transformers import AutoTokenizer
+from tokenizers import pre_tokenizers
+from tokenizers.pre_tokenizers import Digits
 
 
 CLRS_TEXT_FIELDS = ["question", "answer", "algo_name"]
 LLAMA_MODEL_NAME = "meta-llama/Meta-Llama-3-8B"
 GEMMA_MODEL_NAME = "google/gemma-2b"
+GEMMA_3_MODEL_NAME = "google/gemma-3-4b-pt"
 
 
 
@@ -31,13 +34,63 @@ def get_CLRS_dataset(split="train"):
     return dataset
 
 def get_iterable_corpus(dataset, dataset_text_fields=CLRS_TEXT_FIELDS):
-    for item in dataset:
-        yield " ".join([item[field] for field in dataset_text_fields if field in item])
+    return (
+        [" ".join([dataset[i+j][field] for field in dataset_text_fields]).replace("\n", " ").replace("_", " ") for j in range(1000)]
+        for i in range(0, len(dataset)//10, 1000)
+    )
+    
 
-def train_tokenizer(pretrained_tokenizer_name, dataset):
+def train_tokenizer_add_diff(pretrained_tokenizer_name, dataset, path = "tmp/new_tokenizer"):
+    if path is not None:
+        os.makedirs(path, exist_ok=True)
+
     tokenizer = AutoTokenizer.from_pretrained(pretrained_tokenizer_name)
-    tokenizer.train_new_from_iterator(get_iterable_corpus(dataset), vocab_size=tokenizer.vocab_size)
+    new_tokenizer = tokenizer.train_new_from_iterator(get_iterable_corpus(dataset), vocab_size=1000)
+
+
+    diff_tokens = set(new_tokenizer.vocab).difference(tokenizer.vocab)
+    added_tokens = tokenizer.add_tokens(list(diff_tokens))
+    print(f"Added {added_tokens} new tokens to the tokenizer.")
+
+    if path is not None:
+        tokenizer.save_pretrained(path)
+
     return tokenizer
+
+
+def llama_train_tokenizer_remove_numbers(pretrained_tokenizer_name, dataset, path = "tmp/new_tokenizer_without_numbers"):
+    if path is not None:
+        os.makedirs(path, exist_ok=True)
+
+    tokenizer = AutoTokenizer.from_pretrained(pretrained_tokenizer_name)
+    pre_tokenizer = pre_tokenizers.Sequence([Digits(individual_digits=True), tokenizer._tokenizer.pre_tokenizer])
+    tokenizer._tokenizer.pre_tokenizer = pre_tokenizer
+
+    if path is not None:
+        tokenizer.save_pretrained(path)
+
+    return tokenizer
+
+def gemma_train_tokenizer_remove_numbers(pretrained_tokenizer_name, dataset, path = "tmp/new_tokenizer_without_numbers"):
+    if path is not None:
+        os.makedirs(path, exist_ok=True)
+
+    tokenizer = AutoTokenizer.from_pretrained(pretrained_tokenizer_name)
+    pre_tokenizer = pre_tokenizers.Sequence([Digits(individual_digits=True), tokenizer._tokenizer.pre_tokenizer])
+    tokenizer._tokenizer.pre_tokenizer = pre_tokenizer
+
+    if path is not None:
+        tokenizer.save_pretrained(path)
+
+    return tokenizer
+
+
+def test_tokenizer(tokenizer, text, name = None):
+    if name is not None:
+        print(f"Testing tokenizer: {name} with vocab size {len(tokenizer.vocab)}")
+
+    tokens = tokenizer.tokenize(text)
+    print("Tokenized text:", tokens)
 
 
 def main():
@@ -46,24 +99,19 @@ def main():
 
     train_dataset = get_CLRS_dataset("train")
     test_dataset = get_CLRS_dataset("test")
-    
-    # print(f"Train dataset size: {len(train_dataset)}")
-    # print(f"Test dataset size: {len(test_dataset)}")
-    # print("Sample:", train_dataset[0])
-    text = get_iterable_corpus(train_dataset).__next__()
-    print("Sample text:", text)
+    text =get_iterable_corpus(test_dataset["test_1"], CLRS_TEXT_FIELDS).__next__()[0]
 
-    print("LLama tokenizer:")
-    tokenizer = AutoTokenizer.from_pretrained(LLAMA_MODEL_NAME)
-    print("Original tokenizer vocab size:", tokenizer.vocab_size)
-    tokens = tokenizer.tokenize(text)
-    print("Sample tokenized:", tokens)
+    # new_tokenizer = train_tokenizer_add_diff(LLAMA_MODEL_NAME, train_dataset, path="tmp/new_tokenizer")
+    new_tokenizer = llama_train_tokenizer_remove_numbers(LLAMA_MODEL_NAME, train_dataset, path="tmp/llama_new_tokenizer_digits")
+    new_tokenizer = train_tokenizer_add_diff("tmp/llama_new_tokenizer_digits", train_dataset, path="tmp/llama_new_tokenizer_digits_and_diff")
+    #new_tokenizer = AutoTokenizer.from_pretrained("tmp/new_tokenizer_digits_and_diff")
 
-    print("Gamma tokenizer:")
-    tokenizer = AutoTokenizer.from_pretrained(GEMMA_MODEL_NAME)
-    print("Original tokenizer vocab size:", tokenizer.vocab_size)
-    tokens = tokenizer.tokenize(text)
-    print("Sample tokenized:", tokens)
+    test_tokenizer(new_tokenizer, text, "New Tokenizer from Llama-3-8B")
+    test_tokenizer(AutoTokenizer.from_pretrained(GEMMA_3_MODEL_NAME), text, "Llama-3-8B")
+
+    text = "What is the time complexity of binary search?"
+    test_tokenizer(new_tokenizer, text, "New Tokenizer from Llama-3-8B")
+    test_tokenizer(AutoTokenizer.from_pretrained(GEMMA_3_MODEL_NAME), text, "Llama-3-8B")
 
 if __name__ == "__main__":
     main()
